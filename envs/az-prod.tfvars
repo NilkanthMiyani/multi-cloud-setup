@@ -1,4 +1,4 @@
-cloud        = "azure"
+cloud        = "az"
 cluster_name = "prod-azure"
 k8s_version  = "1.36"
 

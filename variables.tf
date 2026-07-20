@@ -1,10 +1,10 @@
 variable "cloud" {
-  description = "Which cloud to provision the cluster on. One of: aws | azure | gcp."
+  description = "Which cloud to provision the cluster on. One of: aws | az | gcp."
   type        = string
 
   validation {
-    condition     = contains(["aws", "azure", "gcp"], var.cloud)
-    error_message = "var.cloud must be one of: aws, azure, gcp."
+    condition     = contains(["aws", "az", "gcp"], var.cloud)
+    error_message = "var.cloud must be one of: aws, az, gcp."
   }
 }
 
@@ -124,7 +124,7 @@ variable "node_max_size" {
 }
 
 # --- Azure / AKS -----------------------------------------------------------
-# Flat variables (only consumed when var.cloud == "azure").
+# Flat variables (only consumed when var.cloud == "az").
 
 variable "location" {
   description = "Azure location/region. e.g. eastus."
