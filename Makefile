@@ -24,7 +24,7 @@ endif
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init fmt validate guard-cloud workspace \
+.PHONY: help init upgrade fmt validate guard-cloud workspace \
         plan apply destroy output show $(CLOUDS)
 
 help:
@@ -35,7 +35,7 @@ help:
 	@echo "  make output aws     make show gcp"
 	@echo
 	@echo "Options:  AUTO=1   skip the apply/destroy confirmation prompt"
-	@echo "Setup:    make init | fmt | validate"
+	@echo "Setup:    make init | upgrade | fmt | validate"
 
 # The cloud names are captured into CLOUD above; as goals they are no-ops so
 # that 'make plan aws' doesn't complain about an unknown target 'aws'.
@@ -48,6 +48,12 @@ $(CLOUDS):
 	$(TF) init
 
 init: .terraform
+
+# Force a re-init to pull provider/version changes. Plain `init` skips this
+# because the .terraform marker already exists; `upgrade` always runs and
+# refreshes the marker + the lock file.
+upgrade:
+	$(TF) init -upgrade
 
 fmt:
 	$(TF) fmt -recursive

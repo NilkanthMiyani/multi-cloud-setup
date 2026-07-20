@@ -111,6 +111,7 @@ The pattern is always `make <verb> <cloud>` (cloud = `aws` | `az` | `gcp`):
 | Command | What it does |
 |---------|--------------|
 | `make init` | Initialize Terraform — run once per checkout (also auto-runs on first use). |
+| `make upgrade` | Re-init with `-upgrade` to pull provider/version changes (`init` won't, once `.terraform/` exists). |
 | `make plan <cloud>` | Select the cloud's workspace and show the plan. |
 | `make apply <cloud>` | Apply (asks for confirmation). Add `AUTO=1` to skip the prompt. |
 | `make destroy <cloud>` | Tear the cloud's cluster down. Add `AUTO=1` to skip the prompt. |
