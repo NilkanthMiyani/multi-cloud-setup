@@ -15,20 +15,15 @@ resource "aws_eks_cluster" "this" {
   role_arn = aws_iam_role.cluster[0].arn
 
   vpc_config {
-    # Control plane ENIs span both tiers; nodes launch in the private subnets.
     subnet_ids              = flatten([aws_subnet.public[*].id, aws_subnet.private[*].id])
     endpoint_private_access = true
     endpoint_public_access  = true
     public_access_cidrs     = var.public_access_cidrs
-    # Attach the control-plane SG to the cross-account ENIs (in addition to the
-    # EKS-managed cluster SG that is always created).
-    security_group_ids = [aws_security_group.eks_cluster[0].id]
+    security_group_ids      = [aws_security_group.eks_cluster[0].id]
   }
 
   tags = var.tags
 
-  # The cluster policy must be attached before the cluster is created, and must
-  # remain until the cluster is deleted.
   depends_on = [
     aws_iam_role_policy_attachment.cluster_policy,
   ]
@@ -84,8 +79,6 @@ resource "aws_eks_node_group" "this" {
 
   tags = var.tags
 
-  # Node policies must be attached before the node group's instances join, and
-  # must remain until the node group is deleted.
   depends_on = [
     aws_iam_role_policy_attachment.node_worker,
     aws_iam_role_policy_attachment.node_cni,

@@ -7,15 +7,9 @@
 resource "google_container_cluster" "this" {
   count = local.is_gcp
 
-  name = var.cluster_name
-  # A zone (var.gcp_zone default) makes this a zonal cluster so node_count is the
-  # total node count. Set gcp_zone to a region for a regional (HA) cluster, but
-  # note node_count then applies per zone.
-  location           = var.gcp_zone
-  min_master_version = var.k8s_version
-
-  # We manage node pools explicitly, so drop the default one the cluster is
-  # created with. deletion_protection is disabled so `terraform destroy` works.
+  name                     = var.cluster_name
+  location                 = var.gcp_zone
+  min_master_version       = var.k8s_version
   remove_default_node_pool = true
   initial_node_count       = 1
   deletion_protection      = false
