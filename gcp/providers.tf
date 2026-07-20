@@ -10,7 +10,7 @@ terraform {
 }
 
 provider "google" {
-  project = var.gcp_project != "" ? var.gcp_project : null
+  project = var.gcp_project
   region  = var.gcp_region
 
   # Blank credentials fall back to Application Default Credentials.

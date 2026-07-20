@@ -11,5 +11,5 @@ node_size  = "e2-standard-2"
 node_count = 2
 
 tags = {
-  "Project" = "prod-proj"
+  "project" = "prod-proj"
 }

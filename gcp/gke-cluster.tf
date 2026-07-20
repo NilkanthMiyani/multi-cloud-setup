@@ -1,6 +1,4 @@
-###############################################################################
 # GCP / GKE
-###############################################################################
 
 resource "google_container_cluster" "this" {
   name                     = var.cluster_name
@@ -10,7 +8,7 @@ resource "google_container_cluster" "this" {
   initial_node_count       = 1
   deletion_protection      = false
 
-  resource_labels = local.gcp_labels
+  resource_labels = var.tags
 }
 
 resource "google_container_node_pool" "this" {
@@ -21,7 +19,7 @@ resource "google_container_node_pool" "this" {
 
   node_config {
     machine_type = var.node_size
-    labels       = local.gcp_labels
+    labels       = var.tags
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform",
     ]

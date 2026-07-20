@@ -1,8 +1,7 @@
-###############################################################################
 # AWS / EKS
 # Networking for this cluster lives in networking.tf. This file holds the EKS
 # cluster, the node group, and the IAM roles they assume.
-###############################################################################
+
 
 # --- Cluster ----------------------------------------------------------------
 

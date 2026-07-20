@@ -17,10 +17,21 @@ variable "project" {
 }
 
 variable "tags" {
-  description = "A map of tags to add to all resources (applied as labels, lowercased)."
+  description = "A map of labels to add to all resources. GCP labels must be lowercase (see validation)."
   type        = map(string)
   default = {
-    "Project" = "prod-proj"
+    "project" = "prod-proj"
+  }
+
+  # GCP label keys/values allow only lowercase letters, digits, '_' and '-',
+  # and keys must start with a lowercase letter. Fail early with a clear message
+  # instead of an opaque API rejection at apply time.
+  validation {
+    condition = alltrue([
+      for k, v in var.tags :
+      k == lower(k) && v == lower(v) && can(regex("^[a-z]", k))
+    ])
+    error_message = "GCP labels must be lowercase and keys must start with a lowercase letter (e.g. \"project\", not \"Project\")."
   }
 }
 
