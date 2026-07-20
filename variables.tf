@@ -27,9 +27,9 @@ variable "project" {
 }
 
 variable "region" {
-  description = "Cloud region. AWS: e.g. mx-central-1. GCP: e.g. us-central1. (Azure uses var.location instead.)"
+  description = "AWS region (e.g. us-east-1). Azure uses var.location; GCP uses var.gcp_region."
   type        = string
-  default     = "mx-central-1"
+  default     = "us-east-1"
 }
 
 variable "node_size" {
@@ -159,6 +159,18 @@ variable "azure_client_secret" {
 
 # --- GCP / GKE -------------------------------------------------------------
 # Flat variables (only consumed when var.cloud == "gcp").
+
+variable "gcp_region" {
+  description = "GCP region for the google provider (e.g. us-central1)."
+  type        = string
+  default     = "us-central1"
+}
+
+variable "gcp_zone" {
+  description = "GCP location for the GKE cluster and node pool. A zone (e.g. us-central1-a) creates a cheaper zonal cluster where node_count is the total node count. A region (e.g. us-central1) creates a regional cluster where node_count is applied PER zone (x3 by default)."
+  type        = string
+  default     = "us-central1-a"
+}
 
 variable "gcp_project" {
   description = "GCP project id to create the cluster in."

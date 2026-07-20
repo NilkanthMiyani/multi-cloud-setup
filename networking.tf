@@ -1,10 +1,3 @@
-###############################################################################
-# Networking (per cloud)
-# All networking resources for every cloud live here, gated by the same
-# local.is_<cloud> flags used elsewhere. Only the selected cloud's network is
-# created; the others produce zero resources.
-###############################################################################
-
 # =============================================================================
 # AWS / EKS networking
 # =============================================================================
@@ -54,8 +47,6 @@ resource "aws_subnet" "public" {
 }
 
 # One private subnet per AZ. Node groups live here; egress is via NAT.
-# CIDRs are offset by availability_zones_count so they don't overlap the public
-# subnets.
 resource "aws_subnet" "private" {
   count = local.is_aws == 1 ? var.availability_zones_count : 0
 
@@ -146,6 +137,7 @@ resource "aws_route_table_association" "private" {
 
 # --- Security groups --------------------------------------------------------
 
+# Control plane security group.
 resource "aws_security_group" "eks_cluster" {
   count = local.is_aws
 
@@ -182,6 +174,7 @@ resource "aws_security_group_rule" "cluster_outbound" {
   source_security_group_id = aws_security_group.eks_nodes[0].id
 }
 
+# Worker node security group.
 resource "aws_security_group" "eks_nodes" {
   count = local.is_aws
 
@@ -225,19 +218,3 @@ resource "aws_security_group_rule" "nodes_cluster_inbound" {
   security_group_id        = aws_security_group.eks_nodes[0].id
   source_security_group_id = aws_security_group.eks_cluster[0].id
 }
-
-# =============================================================================
-# Azure / AKS networking
-# AKS currently uses provider-managed default networking (a vnet/subnet is
-# created automatically for the node pool). To manage it explicitly, add an
-# azurerm_virtual_network + azurerm_subnet here (gated on local.is_azure) and
-# wire the subnet id into default_node_pool.vnet_subnet_id in aks-cluster.tf.
-# =============================================================================
-
-# =============================================================================
-# GCP / GKE networking
-# GKE currently uses the project's default VPC. To manage it explicitly, add a
-# google_compute_network + google_compute_subnetwork here (gated on
-# local.is_gcp) and set network/subnetwork on google_container_cluster in
-# gke-cluster.tf.
-# =============================================================================

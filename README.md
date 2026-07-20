@@ -23,10 +23,10 @@ by which tfvars file you pass at apply time.
 ```
 .
 ├── providers.tf          # required_providers + the three provider blocks
-├── variables.tf          # cloud, cluster_name, k8s_version + per-cloud objects
+├── variables.tf          # cloud, cluster_name, k8s_version + per-cloud flat vars
 ├── locals.tf             # is_aws / is_azure / is_gcp flags
 ├── networking.tf         # AWS VPC, subnets, IGW/NAT, route tables (EKS only)
-├── eks-cluster.tf        # IAM roles, EKS cluster + node group
+├── eks-cluster.tf        # EKS cluster, node group, launch template + IAM roles
 ├── aks-cluster.tf        # resource group + AKS cluster
 ├── gke-cluster.tf        # GKE cluster + node pool
 ├── outputs.tf            # cluster_name, cluster_endpoint (coalesce over clouds)
@@ -45,7 +45,13 @@ by which tfvars file you pass at apply time.
 
 ## Authentication setup
 
-You only need to authenticate to the cloud you are actually deploying to.
+> ⚠️ **All three providers are configured on every run.** Because the config
+> contains resource blocks for all three clouds, Terraform configures all three
+> providers regardless of `var.cloud` — and the **azurerm** provider
+> authenticates *eagerly*, so a valid Azure session (`az login` or `ARM_*`
+> credentials) is required even when you are deploying AWS or GCP. The `count`
+> gate only suppresses *resources*, not provider authentication. The AWS and
+> GCP providers authenticate lazily and don't block a run for another cloud.
 
 ### AWS
 
@@ -54,7 +60,7 @@ aws configure          # or export AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / A
 aws sts get-caller-identity   # verify
 ```
 
-The region comes from `envs/aws-prod.tfvars` (`aws.region`).
+The region comes from `envs/aws-prod.tfvars` (`region`).
 
 ### Azure
 

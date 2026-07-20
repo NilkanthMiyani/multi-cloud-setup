@@ -17,11 +17,6 @@ terraform {
   }
 }
 
-# All three provider blocks are always evaluated regardless of which cloud is
-# selected. AWS now uses flat variables (always defined via defaults). The Azure
-# and GCP provider args are wrapped in try() so their null variable objects on
-# an inactive cloud degrade to a harmless default instead of erroring at plan
-# time.
 
 provider "aws" {
   region = var.region
@@ -44,7 +39,7 @@ provider "azurerm" {
 
 provider "google" {
   project = var.gcp_project != "" ? var.gcp_project : null
-  region  = var.region
+  region  = var.gcp_region
 
   # Blank credentials fall back to Application Default Credentials.
   credentials = var.gcp_credentials != "" ? file(var.gcp_credentials) : null

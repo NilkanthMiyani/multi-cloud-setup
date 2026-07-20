@@ -7,8 +7,11 @@
 resource "google_container_cluster" "this" {
   count = local.is_gcp
 
-  name               = var.cluster_name
-  location           = var.region
+  name = var.cluster_name
+  # A zone (var.gcp_zone default) makes this a zonal cluster so node_count is the
+  # total node count. Set gcp_zone to a region for a regional (HA) cluster, but
+  # note node_count then applies per zone.
+  location           = var.gcp_zone
   min_master_version = var.k8s_version
 
   # We manage node pools explicitly, so drop the default one the cluster is
@@ -24,7 +27,7 @@ resource "google_container_node_pool" "this" {
   count = local.is_gcp
 
   name       = "${var.project}-default"
-  location   = var.region
+  location   = var.gcp_zone
   cluster    = google_container_cluster.this[0].name
   node_count = var.node_count
 

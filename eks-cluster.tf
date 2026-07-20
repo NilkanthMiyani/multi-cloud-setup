@@ -1,11 +1,38 @@
 ###############################################################################
 # AWS / EKS
-# Networking for this cluster lives in networking.tf. This file holds the IAM
-# roles, the EKS cluster, and the node group. Every resource is gated on
-# local.is_aws. All cross-references use [0] indexing.
+# Networking for this cluster lives in networking.tf. This file holds the EKS
+# cluster, the node group, and the IAM roles they assume. Every resource is
+# gated on local.is_aws. All cross-references use [0] indexing.
 ###############################################################################
 
-# --- IAM: cluster role ------------------------------------------------------
+# --- Cluster ----------------------------------------------------------------
+
+resource "aws_eks_cluster" "this" {
+  count = local.is_aws
+
+  name     = var.cluster_name
+  version  = var.k8s_version
+  role_arn = aws_iam_role.cluster[0].arn
+
+  vpc_config {
+    # Control plane ENIs span both tiers; nodes launch in the private subnets.
+    subnet_ids              = flatten([aws_subnet.public[*].id, aws_subnet.private[*].id])
+    endpoint_private_access = true
+    endpoint_public_access  = true
+    public_access_cidrs     = var.public_access_cidrs
+    # Attach the control-plane SG to the cross-account ENIs (in addition to the
+    # EKS-managed cluster SG that is always created).
+    security_group_ids = [aws_security_group.eks_cluster[0].id]
+  }
+
+  tags = var.tags
+
+  # The cluster policy must be attached before the cluster is created, and must
+  # remain until the cluster is deleted.
+  depends_on = [
+    aws_iam_role_policy_attachment.cluster_policy,
+  ]
+}
 
 resource "aws_iam_role" "cluster" {
   count = local.is_aws
@@ -29,6 +56,68 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
 
   role       = aws_iam_role.cluster[0].name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
+# --- Node group -------------------------------------------------------------
+
+resource "aws_eks_node_group" "this" {
+  count = local.is_aws
+
+  cluster_name    = aws_eks_cluster.this[0].name
+  node_group_name = var.project
+  node_role_arn   = aws_iam_role.node[0].arn
+  subnet_ids      = aws_subnet.private[*].id
+
+  scaling_config {
+    desired_size = var.node_desired_size
+    min_size     = var.node_min_size
+    max_size     = var.node_max_size
+  }
+
+  ami_type       = var.node_ami_type
+  instance_types = [var.node_size]
+
+  launch_template {
+    id      = aws_launch_template.node[0].id
+    version = aws_launch_template.node[0].latest_version
+  }
+
+  tags = var.tags
+
+  # Node policies must be attached before the node group's instances join, and
+  # must remain until the node group is deleted.
+  depends_on = [
+    aws_iam_role_policy_attachment.node_worker,
+    aws_iam_role_policy_attachment.node_cni,
+    aws_iam_role_policy_attachment.node_ecr,
+  ]
+}
+
+resource "aws_launch_template" "node" {
+  count = local.is_aws
+
+  name_prefix = "${var.project}-node-"
+
+  vpc_security_group_ids = [
+    aws_security_group.eks_nodes[0].id,
+    aws_eks_cluster.this[0].vpc_config[0].cluster_security_group_id,
+  ]
+
+  block_device_mappings {
+    device_name = "/dev/xvda"
+
+    ebs {
+      volume_size = var.node_disk_size
+      volume_type = "gp3"
+    }
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags          = merge(var.tags, { Name = "${var.project}-node" })
+  }
+
+  tags = var.tags
 }
 
 # --- IAM: node role ---------------------------------------------------------
@@ -69,60 +158,4 @@ resource "aws_iam_role_policy_attachment" "node_ecr" {
 
   role       = aws_iam_role.node[0].name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-}
-
-# --- Cluster ----------------------------------------------------------------
-
-resource "aws_eks_cluster" "this" {
-  count = local.is_aws
-
-  name     = var.cluster_name
-  version  = var.k8s_version
-  role_arn = aws_iam_role.cluster[0].arn
-
-  vpc_config {
-    # Control plane ENIs span both tiers; nodes launch in the private subnets.
-    subnet_ids              = flatten([aws_subnet.public[*].id, aws_subnet.private[*].id])
-    endpoint_private_access = true
-    endpoint_public_access  = true
-    public_access_cidrs     = var.public_access_cidrs
-    # security_group_ids      = [aws_security_group.eks_cluster[0].id, aws_security_group.eks_nodes[0].id]
-  }
-
-  tags = var.tags
-
-  # The cluster policy must be attached before the cluster is created, and must
-  # remain until the cluster is deleted.
-  depends_on = [
-    aws_iam_role_policy_attachment.cluster_policy,
-  ]
-}
-
-resource "aws_eks_node_group" "this" {
-  count = local.is_aws
-
-  cluster_name    = aws_eks_cluster.this[0].name
-  node_group_name = var.project
-  node_role_arn   = aws_iam_role.node[0].arn
-  subnet_ids      = aws_subnet.private[*].id
-
-  scaling_config {
-    desired_size = var.node_desired_size
-    min_size     = var.node_min_size
-    max_size     = var.node_max_size
-  }
-
-  ami_type       = var.node_ami_type
-  disk_size      = var.node_disk_size
-  instance_types = [var.node_size]
-
-  tags = var.tags
-
-  # Node policies must be attached before the node group's instances join, and
-  # must remain until the node group is deleted.
-  depends_on = [
-    aws_iam_role_policy_attachment.node_worker,
-    aws_iam_role_policy_attachment.node_cni,
-    aws_iam_role_policy_attachment.node_ecr,
-  ]
 }
