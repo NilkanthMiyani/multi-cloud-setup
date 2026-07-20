@@ -1,10 +1,9 @@
-# Local state (one workspace per cloud, one state file each)
-terraform.tfstate.d/
+# Local state (each cloud dir keeps its own state file)
 *.tfstate
 *.tfstate.*
 *.tfstate.backup
 
-# Terraform working directory
+# Terraform working directory (one per cloud dir: aws/.terraform, ...)
 .terraform/
 .terraform.lock.hcl
 
