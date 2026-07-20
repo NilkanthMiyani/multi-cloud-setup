@@ -2,20 +2,22 @@
 
 One flat Terraform codebase that provisions a managed Kubernetes cluster on
 **AWS (EKS)**, **Azure (AKS)**, or **GCP (GKE)** — the target cloud is chosen
-by which tfvars file you pass at apply time.
+by which **Terraform workspace** you select.
 
 ## How it works
 
-- `var.cloud` (`"aws" | "az" | "gcp"`) selects the target cloud.
-- [locals.tf](locals.tf) turns that into `is_aws` / `is_azure` / `is_gcp`
-  flags (`1` or `0`).
+- The **workspace name** (`aws` | `az` | `gcp`) selects the target cloud.
+- [locals.tf](locals.tf) reads `terraform.workspace` into `local.cloud` and
+  turns it into `is_aws` / `is_azure` / `is_gcp` flags (`1` or `0`). Selecting
+  an unknown workspace (including the `default` one) fails the run immediately.
 - Every resource in [eks-cluster.tf](eks-cluster.tf),
   [aks-cluster.tf](aks-cluster.tf), and [gke-cluster.tf](gke-cluster.tf)
   carries a `count` gated on its flag, so only the selected cloud's resources
   are created. The other two clouds produce **zero** resources.
-- State is isolated **per cloud** with Terraform's `-state` flag — one state
-  file per cloud under `state/`. There is **no remote backend**, **no
-  workspaces**, and **no modules** — everything is at the root.
+- State is isolated **per cloud** by the workspace — each lives under
+  `terraform.tfstate.d/<cloud>/terraform.tfstate` automatically, no `-state`
+  flag needed. There is **no remote backend** and **no modules** — everything
+  is at the root.
 
 
 ## Layout
@@ -23,19 +25,19 @@ by which tfvars file you pass at apply time.
 ```
 .
 ├── providers.tf          # required_providers + the three provider blocks
-├── variables.tf          # cloud, cluster_name, k8s_version + per-cloud flat vars
-├── locals.tf             # is_aws / is_azure / is_gcp flags
+├── variables.tf          # cluster_name, k8s_version + per-cloud flat vars
+├── locals.tf             # cloud (from workspace) + is_aws / is_azure / is_gcp
 ├── networking.tf         # AWS VPC, subnets, IGW/NAT, route tables (EKS only)
 ├── eks-cluster.tf        # EKS cluster, node group, launch template + IAM roles
 ├── aks-cluster.tf        # resource group + AKS cluster
 ├── gke-cluster.tf        # GKE cluster + node pool
 ├── outputs.tf            # cluster_name, cluster_endpoint (coalesce over clouds)
-├── tf.sh                 # wrapper that pins -state and -var-file
+├── Makefile              # per-cloud shortcuts: make apply aws, plan gcp, ...
 ├── envs/
 │   ├── aws-prod.tfvars
 │   ├── az-prod.tfvars
 │   └── gcp-prod.tfvars
-└── state/                # gitignored, created by tf.sh
+└── terraform.tfstate.d/  # gitignored, one state dir per workspace
 ```
 
 ## Prerequisites
@@ -87,72 +89,84 @@ Set `gcp_project` in `envs/gcp-prod.tfvars` to the same project id.
 
 ## Usage
 
-Everything goes through **`tf.sh`**, which appends the correct `-state` and
-`-var-file` flags for the chosen cloud:
+### With the Makefile (recommended)
+
+The [Makefile](Makefile) keeps the workspace and the `-var-file` lined up for
+you — give the verb, then the cloud as a plain word:
 
 ```bash
-chmod +x tf.sh        # first time only
+make init                 # once per checkout
 
-terraform init        # run once in the directory
+make plan aws             # select aws workspace + plan with aws-prod.tfvars
+make apply aws            # apply (prompts for confirmation)
+make apply aws AUTO=1     # apply with -auto-approve
+make output aws
+make destroy aws
 
-./tf.sh aws   plan
-./tf.sh aws   apply
-
-./tf.sh az    plan
-./tf.sh az    apply
-
-./tf.sh gcp   plan
-./tf.sh gcp   apply
+# swap the cloud for az / gcp: make plan az, make apply gcp, ...
 ```
 
-Read outputs and tear down the same way:
+The pattern is always `make <verb> <cloud>` (cloud = `aws` | `az` | `gcp`):
+
+| Command | What it does |
+|---------|--------------|
+| `make init` | Initialize Terraform — run once per checkout (also auto-runs on first use). |
+| `make plan <cloud>` | Select the cloud's workspace and show the plan. |
+| `make apply <cloud>` | Apply (asks for confirmation). Add `AUTO=1` to skip the prompt. |
+| `make destroy <cloud>` | Tear the cloud's cluster down. Add `AUTO=1` to skip the prompt. |
+| `make output <cloud>` | Print the cloud's outputs. |
+| `make show <cloud>` | Show the cloud's current state. |
+| `make fmt` | `terraform fmt` across the tree. |
+| `make validate` | Validate the configuration. |
+| `make help` | List everything above. |
+
+Under the hood these just run the raw commands below — nothing is hidden.
+
+### Raw Terraform
+
+Select the workspace for your target cloud (the workspace name *is* the cloud),
+then run Terraform with that cloud's var-file:
 
 ```bash
-./tf.sh aws output
-./tf.sh aws show
-./tf.sh aws destroy
-```
+terraform init                          # run once in the directory
 
-Extra flags pass straight through, e.g.:
-
-```bash
-./tf.sh aws apply -auto-approve
-./tf.sh gcp plan  -out=gcp.tfplan
-```
-
-### Without tf.sh
-
-`tf.sh` is just a wrapper that appends `-state` and `-var-file` for the chosen
-cloud. To run Terraform directly, pass those two flags yourself — the state
-file is `state/<cloud>.tfstate` and the var file is `envs/<cloud>-prod.tfvars`
-(where `<cloud>` is `aws`, `az`, or `gcp`):
-
-```bash
-mkdir -p state   # tf.sh does this for you; needed once when running bare
+# Create each workspace the first time (idempotent — skip once they exist):
+terraform workspace new aws
+terraform workspace new az
+terraform workspace new gcp
 
 # AWS
-terraform plan    -state="state/aws.tfstate" -var-file="envs/aws-prod.tfvars"
-terraform apply   -state="state/aws.tfstate" -var-file="envs/aws-prod.tfvars"
-terraform output  -state="state/aws.tfstate" -var-file="envs/aws-prod.tfvars"
-terraform destroy -state="state/aws.tfstate" -var-file="envs/aws-prod.tfvars"
+terraform workspace select aws
+terraform plan    -var-file=envs/aws-prod.tfvars
+terraform apply   -var-file=envs/aws-prod.tfvars
 
 # Azure — swap aws → az
-terraform apply   -state="state/az.tfstate"  -var-file="envs/az-prod.tfvars"
+terraform workspace select az
+terraform apply   -var-file=envs/az-prod.tfvars
 
 # GCP — swap aws → gcp
-terraform apply   -state="state/gcp.tfstate" -var-file="envs/gcp-prod.tfvars"
+terraform workspace select gcp
+terraform apply   -var-file=envs/gcp-prod.tfvars
 ```
 
-Both flags are mandatory on **every** state-touching command. Omitting `-state`
-falls back to the default `terraform.tfstate` and reads/writes the **wrong**
-state — which is exactly what `tf.sh` exists to prevent.
+Read outputs and tear down against the selected workspace:
 
-## ⚠️ Always use tf.sh
+```bash
+terraform workspace select aws
+terraform output
+terraform show
+terraform destroy -var-file=envs/aws-prod.tfvars
+```
 
-> **Every** Terraform command that touches state — `plan`, `apply`,
-> `destroy`, `output`, `show` — **must** go through `./tf.sh <cloud> ...`.
+`terraform workspace show` prints the workspace you're currently in.
+
+## ⚠️ Match the workspace to the var-file
+
+> The workspace picks the **state** and the **cloud**; the `-var-file` picks
+> the matching **inputs**. Keep them aligned — select `aws`, pass
+> `envs/aws-prod.tfvars`.
 >
-> Running bare `terraform apply` (or `output`, `show`, `destroy`, …) uses the
-> default `terraform.tfstate` instead of the per-cloud state file. That reads
-> the **wrong state**, and an `apply`/`destroy` can corrupt or orphan real
-> infrastructure. `init` is the only command you run bare.
+> `apply`/`plan`/`destroy` require the matching `-var-file`. `output`, `show`,
+> and `init` don't. Running in the `default` workspace (or any name other than
+> `aws`/`az`/`gcp`) fails fast via the guard in [locals.tf](locals.tf), so a
+> bare `terraform apply` can't silently touch the wrong state.

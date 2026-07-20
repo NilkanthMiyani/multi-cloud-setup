@@ -1,4 +1,3 @@
-cloud        = "aws"
 cluster_name = "prod-aws"
 k8s_version  = "1.36"
 

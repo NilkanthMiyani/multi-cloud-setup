@@ -1,7 +1,7 @@
 ###############################################################################
 # Azure / AKS
 # Every resource is gated on local.is_azure so nothing here is created unless
-# var.cloud == "azure". All cross-references use [0] indexing.
+# the workspace is "az". All cross-references use [0] indexing.
 ###############################################################################
 
 resource "azurerm_resource_group" "this" {

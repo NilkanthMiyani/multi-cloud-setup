@@ -1,5 +1,5 @@
-# Local state (this project uses local state only, one file per cloud)
-state/
+# Local state (one workspace per cloud, one state file each)
+terraform.tfstate.d/
 *.tfstate
 *.tfstate.*
 *.tfstate.backup

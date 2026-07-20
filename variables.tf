@@ -1,13 +1,3 @@
-variable "cloud" {
-  description = "Which cloud to provision the cluster on. One of: aws | az | gcp."
-  type        = string
-
-  validation {
-    condition     = contains(["aws", "az", "gcp"], var.cloud)
-    error_message = "var.cloud must be one of: aws, az, gcp."
-  }
-}
-
 variable "cluster_name" {
   description = "Name of the managed Kubernetes cluster."
   type        = string
@@ -53,7 +43,7 @@ variable "tags" {
 }
 
 # --- AWS / EKS -------------------------------------------------------------
-# Flat variables (only consumed when var.cloud == "aws").
+# Flat variables (only consumed in the "aws" workspace).
 
 variable "aws_access_key" {
   description = "AWS access key. Leave blank to use the standard credential chain (env vars, shared config, instance profile)."
@@ -124,7 +114,7 @@ variable "node_max_size" {
 }
 
 # --- Azure / AKS -----------------------------------------------------------
-# Flat variables (only consumed when var.cloud == "az").
+# Flat variables (only consumed in the "az" workspace).
 
 variable "location" {
   description = "Azure location/region. e.g. eastus."
@@ -158,7 +148,7 @@ variable "azure_client_secret" {
 }
 
 # --- GCP / GKE -------------------------------------------------------------
-# Flat variables (only consumed when var.cloud == "gcp").
+# Flat variables (only consumed in the "gcp" workspace).
 
 variable "gcp_region" {
   description = "GCP region for the google provider (e.g. us-central1)."

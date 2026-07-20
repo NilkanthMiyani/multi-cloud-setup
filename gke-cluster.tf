@@ -1,7 +1,7 @@
 ###############################################################################
 # GCP / GKE
 # Every resource is gated on local.is_gcp so nothing here is created unless
-# var.cloud == "gcp". All cross-references use [0] indexing.
+# the workspace is "gcp". All cross-references use [0] indexing.
 ###############################################################################
 
 resource "google_container_cluster" "this" {

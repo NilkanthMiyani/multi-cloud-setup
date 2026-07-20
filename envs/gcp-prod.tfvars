@@ -1,4 +1,3 @@
-cloud        = "gcp"
 cluster_name = "prod-gcp"
 k8s_version  = "1.36"
 
