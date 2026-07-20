@@ -62,6 +62,10 @@ aws sts get-caller-identity   # verify
 
 The region comes from `envs/aws-prod.tfvars` (`region`).
 
+Alternatively set `aws_access_key` and `aws_secret_key` in `envs/aws-prod.tfvars`.
+Leave them blank (the default) to use the standard AWS credential chain shown
+above.
+
 ### Azure
 
 ```bash
