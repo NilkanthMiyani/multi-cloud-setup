@@ -25,21 +25,23 @@ Azure or GCP credentials.
 │   ├── networking.tf
 │   ├── eks-cluster.tf
 │   ├── outputs.tf
-│   └── terraform.tfvars  # auto-loaded inputs for AWS
+│   ├── terraform.tfvars  # auto-loaded inputs for AWS
+│   └── Makefile          # standalone: `cd aws && make apply`
 ├── az/                   # AKS: provider, resource group, cluster
 │   ├── providers.tf
 │   ├── variables.tf
 │   ├── aks-cluster.tf
 │   ├── outputs.tf
-│   └── terraform.tfvars
+│   ├── terraform.tfvars
+│   └── Makefile
 ├── gcp/                  # GKE: provider, cluster, node pool
 │   ├── providers.tf
 │   ├── variables.tf
-│   ├── locals.tf         # lowercase label normalization
 │   ├── gke-cluster.tf
 │   ├── outputs.tf
-│   └── terraform.tfvars
-├── Makefile              # make <verb> <cloud>, e.g. make apply aws
+│   ├── terraform.tfvars
+│   └── Makefile
+├── Makefile              # orchestrator: make <verb> <cloud>, e.g. make apply aws
 └── README.md
 ```
 
@@ -115,6 +117,30 @@ The pattern is always `make <verb> <cloud>` (cloud = `aws` | `az` | `gcp`):
 | `make help` | List everything above. |
 
 Under the hood these just run the raw commands below — nothing is hidden.
+
+### Per-directory Makefile (single cloud)
+
+If you only care about one cloud, each directory ships its **own** `Makefile`
+([aws/Makefile](aws/Makefile), [az/Makefile](az/Makefile),
+[gcp/Makefile](gcp/Makefile)). Work from inside the directory — no cloud
+argument, no `-chdir`:
+
+```bash
+cd aws
+
+make init                 # first time (also auto-runs on first plan)
+make plan
+make apply                # prompts for confirmation
+make apply AUTO=1         # skip the prompt
+make output
+make destroy
+
+make fmt | validate | upgrade
+```
+
+Same verbs as the root Makefile, minus the `<cloud>` word — the directory *is*
+the cloud. State stays local to that directory. Run `make help` inside any of
+them for the list.
 
 ### Raw Terraform
 
