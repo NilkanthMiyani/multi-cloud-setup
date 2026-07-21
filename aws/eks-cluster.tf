@@ -60,12 +60,8 @@ resource "aws_eks_node_group" "this" {
   }
 
   ami_type       = var.node_ami_type
+  disk_size      = var.node_disk_size
   instance_types = [var.node_size]
-
-  launch_template {
-    id      = aws_launch_template.node.id
-    version = aws_launch_template.node.latest_version
-  }
 
   tags = var.tags
 
@@ -74,31 +70,6 @@ resource "aws_eks_node_group" "this" {
     aws_iam_role_policy_attachment.node_cni,
     aws_iam_role_policy_attachment.node_ecr,
   ]
-}
-
-resource "aws_launch_template" "node" {
-  name_prefix = "${var.project}-node-"
-
-  vpc_security_group_ids = [
-    aws_security_group.eks_nodes.id,
-    aws_eks_cluster.this.vpc_config[0].cluster_security_group_id,
-  ]
-
-  block_device_mappings {
-    device_name = "/dev/xvda"
-
-    ebs {
-      volume_size = var.node_disk_size
-      volume_type = "gp3"
-    }
-  }
-
-  tag_specifications {
-    resource_type = "instance"
-    tags          = merge(var.tags, { Name = "${var.project}-node" })
-  }
-
-  tags = var.tags
 }
 
 # --- IAM: node role ---------------------------------------------------------
